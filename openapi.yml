@@ -1,0 +1,267 @@
+openapi: '3.0.2'
+
+info:
+  title: zrule API
+  version: '1.0'
+
+servers:
+  - url: https://api.server.test/v1
+
+paths:
+  /decisions:
+    get:
+      summary: Finds a decision by tenant, by name and by version
+      description: Finds a decision by tenant and by name, returns latest version if version parameter is not provided
+      operationId: getDecisions
+      parameters:
+        - name: tenant
+          in: query
+          description: the identifier of the tenant
+          required: true
+          schema:
+            type: string
+        - name: name
+          in: query
+          description: the name of the decision
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: query
+          description: the version number of the decision
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: a list of decision deployments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DecisionDeployment'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Deploys a new decision
+      description: Creates a new decision deployment, upgrade a previous version or create a new decision
+      operationId: deployDecision
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionDeployment'
+      responses:
+        '200':
+          description: deployment succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionDeployment'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'             
+  /decisions/variables:
+    post:
+      summary: Returns a list of variables
+      description: Returns a list of variables from a decision source code
+      operationId: getVariablesFromCode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: the list of variables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VariableForm'
+  /decisions/solution:
+    post:
+      summary: Returns a list of facts
+      description: Returns a list of facts from a decision source code and a list of filled in variables
+      operationId: solveDecisionFromCodeAndVariables
+      parameters:
+        - name: hitPolicy
+          in: query
+          description: the hit policy
+          required: false
+          schema:
+            type: string
+            enum:
+              - first
+              - all
+              - unique
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                code:
+                  type: string
+                variables:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/VariableForm'
+      responses:
+        '200':
+          description: the list of facts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    factName:
+                      type: string
+                    factValue:
+                      anyOf:
+                        - type: string
+                        - type: number
+                        - type: boolean
+  /decisions/{deploymentId}/solution:
+    post:
+      summary: Returns a list of facts
+      description: Returns a list of facts as decision outcome
+      operationId: solveDecision
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                variables:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/VariableForm'
+      parameters:
+        - name: deploymentId
+          in: path
+          description: the id of the deployment
+          required: true
+          schema:
+            type: string
+        - name: hitPolicy
+          in: query
+          description: the hit policy
+          required: false
+          schema:
+            type: string
+            enum:
+              - first
+              - all
+              - unique
+      responses:
+        '200':
+          description: the list of facts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    factName:
+                      type: string
+                    factValue:
+                      anyOf:
+                        - type: string
+                        - type: number
+                        - type: boolean
+  /decisions/{deploymentId}:
+    get:
+      summary: Returns a decision by id of deployment
+      description: Returns a single decision deployment given its id
+      operationId: getDecision
+      parameters:
+        - name: deploymentId
+          in: path
+          description: the id of the deployment
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: the decision deployment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionDeployment'
+  /decisions/{deploymentId}/variables:
+    get:
+      summary: Returns a list of variables
+      description: Returns a list of variables to be submitted afterwards
+      operationId: getVariables
+      parameters:
+        - name: deploymentId
+          in: path
+          description: the id of the deployment
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: the list of variables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VariableForm'
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+    DecisionDeployment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        tenant:
+          type: string
+        version:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date-time
+          readOnly: true
+        code:
+          type: string
+    VariableForm:
+      type: object
+      properties:
+        factName:
+          type: string
+        factType:
+          type: string
+          enum:
+            - "bool"
+            - "number"
+            - "string"
+        factValue:
+          anyOf:
+            - type: string
+            - type: number
+            - type: boolean 
+            
